@@ -113,6 +113,7 @@ function addLog(msg) {
   el.textContent = `[${ts}] ${msg}\n` + el.textContent;
 }
 
+// 修正ポイント: 不要なコードを削除し、確実に同期できる API を使用
 async function doSync() {
   const btn = document.getElementById('sync-btn');
   btn.disabled = true;
@@ -120,30 +121,25 @@ async function doSync() {
   
   try {
     const t1 = Date.now();
-    // ブラウザからのアクセスが許可されているオープンな時刻API
+    // GitHub Pages 上でも動作が許可されている API
     const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Tokyo');
-    if (!res.ok) throw new Error('APIレスポンスエラー');
+    if (!res.ok) throw new Error('API接続エラー');
     const data = await res.json();
     const t4 = Date.now();
     
-    // APIが返却するUnixタイムスタンプ（秒）を使用
     const serverMs = data.unixtime * 1000 + (data.datetime.split('.')[1]?.substring(0, 3) || 0) * 1;
     rtt = t4 - t1;
     ntpOffset = serverMs + (rtt / 2) - t4;
     
     synced = true;
     syncCount++;
-    addLog(`同期成功: 誤差${ntpOffset.toFixed(1)}ms / RTT ${rtt}ms`);
+    addLog(`同期完了: 誤差${ntpOffset.toFixed(1)}ms / RTT ${rtt}ms`);
     updateStatusUI();
   } catch(e) {
     addLog('同期失敗: ' + e.message);
-    // 失敗時はローカル時刻で継続
     if(!synced) ntpOffset = 0;
   }
   btn.disabled = false;
-}
-
-  document.body.appendChild(script);
 }
 
 function updateStatusUI() {
@@ -159,13 +155,14 @@ function toggleChime() {
   chimeEnabled = !chimeEnabled;
   const btn = document.getElementById('toggle-btn');
   if (chimeEnabled) {
-    getAudio(); // ユーザー操作時にAudioContextを有効化
+    getAudio();
     btn.textContent = '時報 ON (停止はここをタップ)';
     btn.className = 'toggle-btn active';
     addLog('時報待機開始');
   } else {
     btn.textContent = '時報 OFF';
     btn.className = 'toggle-btn';
+    addLog('時報停止');
   }
 }
 
@@ -195,13 +192,11 @@ function tick() {
         document.getElementById('chime-ind').className = 'chime-ind';
       }, 2000);
     } else if (s === (target - 1 + 60) % 60 && ms > 700 && !beeped[key + '-pre']) {
-      // 予報音（1秒前）
       beeped[key + '-pre'] = true;
       beep(880, 0.1, volume * 0.5);
     }
   }
 
-  // 5分ごとに自動同期
   if (synced && now.getMinutes() % 5 === 0 && now.getMinutes() !== lastAutoSyncMin) {
     lastAutoSyncMin = now.getMinutes();
     doSync();
@@ -215,7 +210,6 @@ document.getElementById('vol').addEventListener('input', (e) => {
   document.getElementById('vol-val').textContent = e.target.value + '%';
 });
 
-// 初回同期開始
 doSync();
 requestAnimationFrame(tick);
 </script>
