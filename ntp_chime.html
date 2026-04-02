@@ -185,13 +185,17 @@ function tick() {
     now.getSeconds().toString().padStart(2, '0');
   document.getElementById('clock-sub').textContent = '.' + Math.floor(now.getMilliseconds() / 100);
 
-  if (chimeEnabled) {
+if (chimeEnabled) {
     const s = now.getSeconds();
     const ms = now.getMilliseconds();
     const target = parseInt(document.getElementById('chime-sec').value) || 0;
+    
+    // ターゲットまでの残り秒数を計算
+    const diff = (target - s + 60) % 60;
     const key = `${now.getMinutes()}-${s}`;
 
-    if (s === target && !beeped[key] && ms < 300) {
+    // 【正解の音】 0秒（ターゲット）になった瞬間
+    if (diff === 0 && !beeped[key] && ms < 300) {
       beeped[key] = true;
       bong(volume);
       document.getElementById('chime-ind').textContent = 'ピーン！';
@@ -200,9 +204,11 @@ function tick() {
         document.getElementById('chime-ind').textContent = '待機中...';
         document.getElementById('chime-ind').className = 'chime-ind';
       }, 2000);
-    } else if (s === (target - 1 + 60) % 60 && ms > 700 && !beeped[key + '-pre']) {
-      beeped[key + '-pre'] = true;
-      beep(880, 0.1, volume * 0.5);
+
+    // 【予報の音】 3秒前、2秒前、1秒前の時
+    } else if (diff <= 3 && diff > 0 && !beeped[key] && ms < 300) {
+      beeped[key] = true;
+      beep(880, 0.1, volume * 0.5); // 高い音で「ピッ」
     }
   }
 
