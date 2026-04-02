@@ -114,31 +114,42 @@ function addLog(msg) {
 }
 
 // NICTの公開APIを使用して同期
-async function doSync() {
+function doSync() {
   const btn = document.getElementById('sync-btn');
   btn.disabled = true;
   document.getElementById('sync-status').textContent = '同期中...';
   
-  try {
-    const t1 = Date.now();
-    // NICTの軽量HTTP時刻取得API
-    const res = await fetch('https://ntp-a1.nict.go.jp/cgi-bin/json?' + t1);
-    const data = await res.json();
+  const callbackName = 'nict_cb_' + Date.now();
+  const t1 = Date.now();
+  
+  // 1. 受け皿となる関数を作る
+  window[callbackName] = function(data) {
     const t4 = Date.now();
-    
-    const serverMs = data.st * 1000; 
+    const serverMs = data.st * 1000;
     rtt = t4 - t1;
     ntpOffset = serverMs + (rtt / 2) - t4;
     synced = true;
     syncCount++;
-    
-    addLog(`NICT同期完了 (Offset: ${ntpOffset.toFixed(1)}ms / RTT: ${rtt}ms)`);
+    addLog(`同期成功: 誤差${ntpOffset.toFixed(1)}ms`);
     updateStatusUI();
-  } catch(e) {
-    addLog('同期失敗: ' + e.message);
-    if(!synced) ntpOffset = 0;
-  }
-  btn.disabled = false;
+    
+    // 後片付け
+    delete window[callbackName];
+    document.getElementById('nict-script')?.remove();
+    btn.disabled = false;
+  };
+
+  // 2. scriptタグとして読み込む（これがfetch制限を回避するコツです）
+  const script = document.createElement('script');
+  script.id = 'nict-script';
+  script.src = `https://ntp-a1.nict.go.jp/cgi-bin/json?callback=${callbackName}&${t1}`;
+  
+  script.onerror = () => {
+    addLog('同期失敗: ネットワークエラー');
+    btn.disabled = false;
+  };
+
+  document.body.appendChild(script);
 }
 
 function updateStatusUI() {
