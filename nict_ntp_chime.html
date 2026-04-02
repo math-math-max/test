@@ -113,41 +113,35 @@ function addLog(msg) {
   el.textContent = `[${ts}] ${msg}\n` + el.textContent;
 }
 
-// NICTの公開APIを使用して同期
-function doSync() {
+async function doSync() {
   const btn = document.getElementById('sync-btn');
   btn.disabled = true;
   document.getElementById('sync-status').textContent = '同期中...';
   
-  const callbackName = 'nict_cb_' + Date.now();
-  const t1 = Date.now();
-  
-  // 1. 受け皿となる関数を作る
-  window[callbackName] = function(data) {
+  try {
+    const t1 = Date.now();
+    // ブラウザからのアクセスが許可されているオープンな時刻API
+    const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Tokyo');
+    if (!res.ok) throw new Error('APIレスポンスエラー');
+    const data = await res.json();
     const t4 = Date.now();
-    const serverMs = data.st * 1000;
+    
+    // APIが返却するUnixタイムスタンプ（秒）を使用
+    const serverMs = data.unixtime * 1000 + (data.datetime.split('.')[1]?.substring(0, 3) || 0) * 1;
     rtt = t4 - t1;
     ntpOffset = serverMs + (rtt / 2) - t4;
+    
     synced = true;
     syncCount++;
-    addLog(`同期成功: 誤差${ntpOffset.toFixed(1)}ms`);
+    addLog(`同期成功: 誤差${ntpOffset.toFixed(1)}ms / RTT ${rtt}ms`);
     updateStatusUI();
-    
-    // 後片付け
-    delete window[callbackName];
-    document.getElementById('nict-script')?.remove();
-    btn.disabled = false;
-  };
-
-  // 2. scriptタグとして読み込む（これがfetch制限を回避するコツです）
-  const script = document.createElement('script');
-  script.id = 'nict-script';
-  script.src = `https://ntp-a1.nict.go.jp/cgi-bin/json?callback=${callbackName}&${t1}`;
-  
-  script.onerror = () => {
-    addLog('同期失敗: ネットワークエラー');
-    btn.disabled = false;
-  };
+  } catch(e) {
+    addLog('同期失敗: ' + e.message);
+    // 失敗時はローカル時刻で継続
+    if(!synced) ntpOffset = 0;
+  }
+  btn.disabled = false;
+}
 
   document.body.appendChild(script);
 }
