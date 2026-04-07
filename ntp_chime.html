@@ -1,32 +1,32 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NICT NTP Chime</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        #app { padding: 1.5rem 1rem; max-width: 480px; margin: 0 auto; font-family: sans-serif; }
-        .clock-display { text-align: center; margin-bottom: 1.5rem; }
-        .clock-main { font-size: 56px; font-weight: 500; color: #333; letter-spacing: 2px; font-variant-numeric: tabular-nums; line-height: 1.1; }
-        .clock-sub { font-size: 20px; color: #666; margin-top: 2px; font-variant-numeric: tabular-nums; }
-        .status-row { display: flex; gap: 10px; margin-bottom: 1.25rem; }
-        .stat-card { flex: 1; background: #f5f5f5; border-radius: 8px; padding: 10px 12px; border: 1px solid #eee; }
-        .stat-label { font-size: 11px; color: #666; margin-bottom: 4px; }
-        .stat-value { font-size: 14px; font-weight: 500; color: #333; font-variant-numeric: tabular-nums; }
-        .good { color: #1D9E75; } .warn { color: #BA7517; } .bad { color: #E24B4A; }
-        .controls { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
-        .ctrl-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-        .ctrl-label { font-size: 13px; color: #666; min-width: 68px; }
-        .ctrl-row input[type=range] { flex: 1; }
-        .ctrl-val { font-size: 13px; font-weight: 500; min-width: 36px; text-align: right; }
-        .toggle-btn { width: 100%; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; background: #fff; border: 1px solid #ccc; }
-        .toggle-btn.active { background: #e3f2fd; color: #1976d2; border-color: #1976d2; }
-        .sync-btn { padding: 6px 14px; font-size: 13px; cursor: pointer; border-radius: 6px; background: #eee; border: 1px solid #ccc; }
-        .chime-ind { text-align: center; font-size: 13px; color: #666; margin-top: 0.75rem; min-height: 20px; }
-        .chime-ind.active { color: #1D9E75; font-weight: 700; }
-        .log-area { background: #f9f9f9; border-radius: 6px; padding: 10px; font-size: 11px; color: #777; font-family: monospace; height: 100px; overflow-y: auto; white-space: pre-wrap; margin-top: 10px; border: 1px solid #eee; }
-    </style>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NTP Chime</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    #app { padding: 1.5rem 1rem; max-width: 480px; margin: 0 auto; font-family: sans-serif; }
+    .clock-display { text-align: center; margin-bottom: 1.5rem; }
+    .clock-main { font-size: 56px; font-weight: 500; color: #333; letter-spacing: 2px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .clock-sub { font-size: 20px; color: #666; margin-top: 2px; font-variant-numeric: tabular-nums; }
+    .status-row { display: flex; gap: 10px; margin-bottom: 1.25rem; }
+    .stat-card { flex: 1; background: #f5f5f5; border-radius: 8px; padding: 10px 12px; border: 1px solid #eee; }
+    .stat-label { font-size: 11px; color: #666; margin-bottom: 4px; }
+    .stat-value { font-size: 14px; font-weight: 500; color: #333; font-variant-numeric: tabular-nums; }
+    .controls { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .ctrl-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .ctrl-label { font-size: 13px; color: #666; min-width: 68px; }
+    .ctrl-row input[type=range] { flex: 1; }
+    .ctrl-val { font-size: 13px; font-weight: 500; min-width: 36px; text-align: right; }
+    .toggle-btn { width: 100%; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; background: #fff; border: 1px solid #ccc; }
+    .toggle-btn.active { background: #e3f2fd; color: #1976d2; border-color: #1976d2; }
+    .sync-btn { padding: 6px 14px; font-size: 13px; cursor: pointer; border-radius: 6px; background: #eee; border: 1px solid #ccc; }
+    .chime-ind { text-align: center; font-size: 13px; color: #666; margin-top: 0.75rem; min-height: 20px; }
+    .chime-ind.active { color: #1D9E75; font-weight: 700; }
+    .log-area { background: #f9f9f9; border-radius: 6px; padding: 10px; font-size: 11px; color: #777; font-family: monospace; height: 100px; overflow-y: auto; white-space: pre-wrap; margin-top: 10px; border: 1px solid #eee; }
+    .url-hint { font-size: 11px; color: #aaa; margin-top: 6px; text-align: center; }
+  </style>
 </head>
 <body>
 
@@ -35,12 +35,8 @@
     <div class="clock-main" id="clock-main">--:--:--</div>
     <div class="clock-sub" id="clock-sub">.0</div>
   </div>
-  
+
   <div class="status-row">
-    <div class="stat-card">
-      <div class="stat-label">NTP誤差</div>
-      <div class="stat-value" id="offset-val">未同期</div>
-    </div>
     <div class="stat-card">
       <div class="stat-label">遅延(RTT)</div>
       <div class="stat-value" id="rtt-val">--</div>
@@ -59,6 +55,11 @@
       <button class="sync-btn" id="sync-btn" onclick="doSync()">NTP同期</button>
     </div>
     <div class="ctrl-row">
+      <span class="ctrl-label">予告秒数</span>
+      <input type="number" id="before-sec" min="0" max="30" value="3" style="width:50px;">
+      <span style="font-size:12px;color:#666;">秒前から</span>
+    </div>
+    <div class="ctrl-row">
       <span class="ctrl-label">音量</span>
       <input type="range" id="vol" min="0" max="100" value="70">
       <span class="ctrl-val" id="vol-val">70%</span>
@@ -68,13 +69,41 @@
 
   <div class="chime-ind" id="chime-ind">時報を有効にしてください</div>
   <div class="log-area" id="log"></div>
+  <div class="url-hint">URLオプション例: ?s=0&amp;b=5 → 0秒に鳴らす・5秒前から予告</div>
 </div>
 
 <script>
-let ntpOffset = 0, rtt = 0, synced = false, syncCount = 0;
-let chimeEnabled = false, volume = 0.7, audioCtx = null;
-let beeped = {}, lastAutoSyncMin = -1;
+// ── URLパラメータ読み込み ──────────────────────────
+(function applyURLParams() {
+  const p = new URLSearchParams(location.search);
+  const s = parseInt(p.get('s'));
+  const b = parseInt(p.get('b'));
+  if (!isNaN(s) && s >= 0 && s <= 59) {
+    document.getElementById('chime-sec').value = s;
+  }
+  if (!isNaN(b) && b >= 0 && b <= 30) {
+    document.getElementById('before-sec').value = b;
+  }
+})();
 
+// ── 状態変数 ───────────────────────────────────────
+let rtt = 0, synced = false, syncCount = 0;
+let chimeEnabled = false, volume = 0.7, audioCtx = null;
+let lastAutoSyncMin = -1;
+
+// beeped: キー = "分-秒"、値 = true
+// 古いエントリが溜まらないよう、毎分クリーンアップする
+let beeped = {};
+let lastBeepedCleanMin = -1;
+
+function cleanBeeped(currentMin) {
+  if (currentMin !== lastBeepedCleanMin) {
+    beeped = {};
+    lastBeepedCleanMin = currentMin;
+  }
+}
+
+// ── 音声 ───────────────────────────────────────────
 function getAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -107,126 +136,130 @@ function bong(vol) {
   });
 }
 
+// ── ログ ───────────────────────────────────────────
 function addLog(msg) {
   const el = document.getElementById('log');
-  const ts = new Date().toLocaleTimeString();
+  const ts = new Date().toLocaleTimeString('ja-JP');
   el.textContent = `[${ts}] ${msg}\n` + el.textContent;
 }
 
+// ── NTP同期（RTT計測のみ） ──────────────────────────
 async function doSync() {
   const btn = document.getElementById('sync-btn');
   btn.disabled = true;
   document.getElementById('sync-status').textContent = '同期中...';
-  addLog('Googleサーバー経由で時刻を取得中...');
+  addLog('サーバーへ接続中...');
 
   try {
     const t1 = Date.now();
-    // キャッシュを避けるためにランダムなパラメータを付与
-    const res = await fetch('https://www.google.com/generate_204?t=' + t1, {
-      mode: 'no-cors', // セキュリティ制限を回避する設定
+    await fetch('https://www.google.com/generate_204?t=' + t1, {
+      mode: 'no-cors',
       cache: 'no-store'
     });
     const t4 = Date.now();
-
-    // fetch自体は成功するので、通信にかかった時間の半分を誤差として計算
-    // 本来はサーバー時刻を取りたいが、no-corsではヘッダーが読めないため、
-    // 「通信の往復時間（RTT）」からPC時計のズレを推測するモードに切り替えます
-    
     rtt = t4 - t1;
-    // 完全に「未同期」の状態を脱却するため、
-    // もし前回までの同期が失敗していたら一旦 0ms として処理を開始
-    if (!synced) {
-      ntpOffset = 0;
-      synced = true;
-    }
-    
+    synced = true;
     syncCount++;
-    addLog(`通信成功 (RTT: ${rtt}ms)。時刻の信頼性を確認しました。`);
+    addLog(`通信成功 (RTT: ${rtt}ms)`);
     updateStatusUI();
   } catch (e) {
-    addLog('同期エラー: ' + e.message + '。ローカル時計を使用します。');
-    synced = true;
-    ntpOffset = 0;
+    addLog('同期エラー: ' + e.message);
+    if (!synced) { synced = true; }
   }
   btn.disabled = false;
 }
 
 function updateStatusUI() {
-  const offEl = document.getElementById('offset-val');
-  const abs = Math.abs(ntpOffset);
-  offEl.textContent = (ntpOffset >= 0 ? '+' : '') + ntpOffset.toFixed(1) + 'ms';
-  offEl.className = 'stat-value ' + (abs < 100 ? 'good' : 'warn');
-  document.getElementById('rtt-val').textContent = rtt + 'ms';
-  document.getElementById('sync-status').textContent = syncCount + '回';
+  document.getElementById('rtt-val').textContent = synced ? rtt + 'ms' : '--';
+  document.getElementById('sync-status').textContent = synced ? syncCount + '回' : '--';
 }
 
+// ── チャイム ON/OFF ─────────────────────────────────
 function toggleChime() {
   chimeEnabled = !chimeEnabled;
   const btn = document.getElementById('toggle-btn');
   if (chimeEnabled) {
-    getAudio();
+    getAudio(); // ユーザー操作起点でAudioContext解放
     btn.textContent = '時報 ON (停止はここをタップ)';
     btn.className = 'toggle-btn active';
+    document.getElementById('chime-ind').textContent = '待機中...';
+    document.getElementById('chime-ind').className = 'chime-ind';
     addLog('時報待機開始');
   } else {
     btn.textContent = '時報 OFF';
     btn.className = 'toggle-btn';
+    document.getElementById('chime-ind').textContent = '時報を有効にしてください';
+    document.getElementById('chime-ind').className = 'chime-ind';
     addLog('時報停止');
   }
 }
 
+// ── メインループ ───────────────────────────────────
 function tick() {
-  const nowMs = Date.now() + ntpOffset;
-  const now = new Date(nowMs);
-  
-  document.getElementById('clock-main').textContent = 
+  const now = new Date(Date.now());
+  const s   = now.getSeconds();
+  const ms  = now.getMilliseconds();
+  const min = now.getMinutes();
+
+  // 時刻表示
+  document.getElementById('clock-main').textContent =
     now.getHours().toString().padStart(2, '0') + ':' +
-    now.getMinutes().toString().padStart(2, '0') + ':' +
-    now.getSeconds().toString().padStart(2, '0');
-  document.getElementById('clock-sub').textContent = '.' + Math.floor(now.getMilliseconds() / 100);
+    min.toString().padStart(2, '0') + ':' +
+    s.toString().padStart(2, '0');
+  document.getElementById('clock-sub').textContent =
+    '.' + Math.floor(ms / 100);
 
-if (chimeEnabled) {
-    const s = now.getSeconds();
-    const ms = now.getMilliseconds();
+  // 毎分キャッシュクリア（メモリリーク対策）
+  cleanBeeped(min);
+
+  // チャイム処理
+  if (chimeEnabled) {
     const target = parseInt(document.getElementById('chime-sec').value) || 0;
-    
-    // ターゲットまでの残り秒数を計算
-    const diff = (target - s + 60) % 60;
-    const key = `${now.getMinutes()}-${s}`;
+    const before = parseInt(document.getElementById('before-sec').value) || 0;
+    const diff   = (target - s + 60) % 60; // ターゲットまでの残り秒数
+    const key    = `${min}-${s}`;
 
-    // 【正解の音】 0秒（ターゲット）になった瞬間
     if (diff === 0 && !beeped[key] && ms < 300) {
+      // ターゲット秒 → 本番音
       beeped[key] = true;
       bong(volume);
-      document.getElementById('chime-ind').textContent = 'ピーン！';
+      document.getElementById('chime-ind').textContent = 'ポーン！';
       document.getElementById('chime-ind').className = 'chime-ind active';
       setTimeout(() => {
-        document.getElementById('chime-ind').textContent = '待機中...';
-        document.getElementById('chime-ind').className = 'chime-ind';
+        if (chimeEnabled) {
+          document.getElementById('chime-ind').textContent = '待機中...';
+          document.getElementById('chime-ind').className = 'chime-ind';
+        }
       }, 2000);
 
-    // 【予報の音】 3秒前、2秒前、1秒前の時
-    } else if (diff <= 3 && diff > 0 && !beeped[key] && ms < 300) {
+    } else if (before > 0 && diff <= before && diff > 0 && !beeped[key] && ms < 300) {
+      // 予告秒数内 → ピッ
       beeped[key] = true;
-      beep(880, 0.1, volume * 0.5); // 高い音で「ピッ」
+      beep(880, 0.1, volume * 0.5);
+      document.getElementById('chime-ind').textContent = `あと ${diff} 秒...`;
+      document.getElementById('chime-ind').className = 'chime-ind';
     }
   }
 
-  if (synced && now.getMinutes() % 5 === 0 && now.getMinutes() !== lastAutoSyncMin) {
-    lastAutoSyncMin = now.getMinutes();
+  // 5分ごとに自動同期
+  if (synced && min % 5 === 0 && min !== lastAutoSyncMin) {
+    lastAutoSyncMin = min;
     doSync();
   }
 
   requestAnimationFrame(tick);
 }
 
+// ── イベント ───────────────────────────────────────
 document.getElementById('vol').addEventListener('input', (e) => {
   volume = e.target.value / 100;
   document.getElementById('vol-val').textContent = e.target.value + '%';
 });
 
+// ── 起動 ───────────────────────────────────────────
 doSync();
 requestAnimationFrame(tick);
 </script>
+
 </body>
 </html>
