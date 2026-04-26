@@ -28,18 +28,16 @@
     .sync-btn:disabled { opacity: 0.5; }
     .chime-ind { text-align: center; font-size: 13px; color: #666; margin-top: 0.75rem; min-height: 20px; }
     .chime-ind.active { color: #1D9E75; font-weight: 700; }
-    .log-area { background: #f9f9f9; border-radius: 6px; padding: 10px; font-size: 11px; color: #777; font-family: monospace; height: 100px; overflow-y: auto; white-space: pre-wrap; margin-top: 10px; border: 1px solid #eee; }
+    .log-area { background: #f9f9f9; border-radius: 6px; padding: 10px; font-size: 11px; color: #777; font-family: monospace; height: 150px; overflow-y: auto; white-space: pre-wrap; margin-top: 10px; border: 1px solid #eee; }
     .url-hint { font-size: 11px; color: #aaa; margin-top: 6px; text-align: center; }
   </style>
 </head>
 <body>
-
 <div id="app">
   <div class="clock-display">
     <div class="clock-main" id="clock-main">--:--:--</div>
     <div class="clock-sub" id="clock-sub">.0</div>
   </div>
-
   <div class="status-row">
     <div class="stat-card">
       <div class="stat-label">最小RTT</div>
@@ -54,7 +52,6 @@
       <div class="stat-value" id="sync-status">--</div>
     </div>
   </div>
-
   <div class="controls">
     <div class="ctrl-row">
       <span class="ctrl-label">鳴らす秒</span>
@@ -74,48 +71,35 @@
     </div>
     <button class="toggle-btn" id="toggle-btn" onclick="toggleChime()">時報 OFF</button>
   </div>
-
   <div class="chime-ind" id="chime-ind">時報を有効にしてください</div>
   <div class="log-area" id="log"></div>
   <div class="url-hint">URLオプション例: ?s=0&amp;b=5 → 0秒に鳴らす・5秒前から予告</div>
 </div>
 
 <script>
-// ── URLパラメータ読み込み ──────────────────────────
 (function applyURLParams() {
   const p = new URLSearchParams(location.search);
-  const s = parseInt(p.get('s'));
-  const b = parseInt(p.get('b'));
+  const s = parseInt(p.get('s')), b = parseInt(p.get('b'));
   if (!isNaN(s) && s >= 0 && s <= 59) document.getElementById('chime-sec').value = s;
   if (!isNaN(b) && b >= 0 && b <= 30) document.getElementById('before-sec').value = b;
 })();
 
-// ── 状態変数 ───────────────────────────────────────
 let rtt = 0, offset = 0, synced = false, syncCount = 0;
 let chimeEnabled = false, volume = 0.7, audioCtx = null;
 let lastAutoSyncMin = -1;
 let beeped = {}, lastBeepedCleanMin = -1;
 
-function cleanBeeped(currentMin) {
-  if (currentMin !== lastBeepedCleanMin) {
-    beeped = {};
-    lastBeepedCleanMin = currentMin;
-  }
-}
+function cleanBeeped(m) { if (m !== lastBeepedCleanMin) { beeped = {}; lastBeepedCleanMin = m; } }
+function correctedNow() { return new Date(Date.now() + offset); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function correctedNow() {
-  return new Date(Date.now() + offset);
-}
-
-// ── 音声 ───────────────────────────────────────────
 function getAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
 }
 function beep(freq, dur, vol) {
-  const ctx = getAudio();
-  const osc = ctx.createOscillator(), g = ctx.createGain();
+  const ctx = getAudio(), osc = ctx.createOscillator(), g = ctx.createGain();
   osc.connect(g); g.connect(ctx.destination);
   osc.frequency.value = freq;
   g.gain.setValueAtTime(0, ctx.currentTime);
@@ -138,91 +122,75 @@ function bong(vol) {
   });
 }
 
-// ── ログ ───────────────────────────────────────────
 function addLog(msg) {
   const el = document.getElementById('log');
   const ts = new Date().toLocaleTimeString('ja-JP');
   el.textContent = `[${ts}] ${msg}\n` + el.textContent;
 }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ── 計測エンドポイント候補（上から順に試す） ──────
-// 条件: ドメイン名TLS証明書OK + CORS wildcard (*) + Dateヘッダーあり
-//
-// one.one.one.one  : Cloudflare。/cdn-cgi/trace はAccess-Control-Allow-Origin:*
-//時刻精度はどれも秒精度（±500ms）なので、最小RTTで誤差を最小化する
-const ENDPOINTS = [
-  {
-    url: () => `https://one.one.one.one/cdn-cgi/trace?_=${Date.now()}`,
-    method: 'GET',
-    getDate: (res) => res.headers.get('date'),
-    label: 'Cloudflare(one.one.one.one)',
-  },
-  {
-    // NICT JSON API: st フィールドに UNIX秒（小数付き）でサーバー時刻あり
-    // Access-Control-Allow-Origin: * で返す
-    url: () => `https://ntp-a1.nict.go.jp/cgi-bin/json?_=${Date.now()}`,
-    method: 'GET',
-    getDate: async (res) => {
-      try {
-        const j = await res.clone().json();
-        // st は UNIX秒（小数）→ Date 文字列に変換して統一
-        if (j && j.st) return new Date(j.st * 1000).toUTCString();
-      } catch (_) {}
-      return res.headers.get('date');
-    },
-    label: 'NICT',
-  },
-];
-
-// ── 1エンドポイント・1回計測 ───────────────────────
-async function measureOne(ep) {
+// ── 計測本体 ───────────────────────────────────────
+// one.one.one.one の /cdn-cgi/trace はGETのみ受け付け、
+// Access-Control-Allow-Origin: * を返す（CORSフレンドリー）
+// ただし Date ヘッダーが返ってこない場合に備え、
+// ボディの "ts=" 行（UNIX秒）も併用する
+async function measureOnce() {
+  const url = `https://one.one.one.one/cdn-cgi/trace?_=${Date.now()}`;
   const t1 = Date.now();
-  const res = await fetch(ep.url(), { method: ep.method, cache: 'no-store' });
+  const res = await fetch(url, { cache: 'no-store' });
   const t4 = Date.now();
+  const measuredRtt = t4 - t1;
 
-  const dateStr = typeof ep.getDate === 'function'
-    ? await ep.getDate(res)
-    : res.headers.get('date');
-  if (!dateStr) return null;
+  // まず Date ヘッダーを試す
+  const dateHeader = res.headers.get('date');
+  addLog(`  RTT:${measuredRtt}ms  Date header: "${dateHeader}"`);
 
-  const serverMs = new Date(dateStr).getTime();
-  if (isNaN(serverMs)) return null;
+  let serverMs = null;
 
-  const measuredRtt    = t4 - t1;
+  if (dateHeader) {
+    serverMs = new Date(dateHeader).getTime();
+  }
+
+  // Date ヘッダーがなければボディの "ts=XXXXXXXXXX.XXX" を使う
+  if (!serverMs || isNaN(serverMs)) {
+    const body = await res.text();
+    const m = body.match(/ts=(\d+\.\d+)/);
+    if (m) {
+      serverMs = parseFloat(m[1]) * 1000;
+      addLog(`  Date headerなし → body ts=${m[1]} を使用`);
+    }
+  }
+
+  if (!serverMs || isNaN(serverMs)) {
+    addLog(`  サーバー時刻取得失敗`);
+    return null;
+  }
+
   const measuredOffset = serverMs - (t1 + measuredRtt / 2);
-  return { rtt: measuredRtt, offset: measuredOffset, label: ep.label };
+  return { rtt: measuredRtt, offset: measuredOffset };
 }
 
-// ── NTP同期メイン ──────────────────────────────────
-// 各エンドポイントを SAMPLES 回ずつ試し、全体でRTT最小を採用
 const SAMPLES = 5;
 
 async function doSync() {
   const btn = document.getElementById('sync-btn');
   btn.disabled = true;
   document.getElementById('sync-status').textContent = '同期中...';
+  addLog(`=== 同期開始 (one.one.one.one × ${SAMPLES}回) ===`);
 
   const results = [];
-
-  for (const ep of ENDPOINTS) {
-    addLog(`${ep.label} に ${SAMPLES} 回計測中...`);
-    for (let i = 0; i < SAMPLES; i++) {
-      try {
-        const r = await measureOne(ep);
-        if (r) results.push(r);
-      } catch (e) {
-        // 失敗は無視して続行
-      }
-      if (i < SAMPLES - 1) await sleep(80);
+  for (let i = 0; i < SAMPLES; i++) {
+    try {
+      const r = await measureOnce();
+      if (r) results.push(r);
+    } catch (e) {
+      addLog(`  例外: ${e.message}`);
     }
-    // 1エンドポイントで成功サンプルが取れたら以降はスキップ
-    if (results.length >= 3) break;
+    if (i < SAMPLES - 1) await sleep(80);
   }
 
   if (results.length === 0) {
-    addLog('全エンドポイント失敗。オフセット補正なしで継続。');
-    synced = true; // タイムアウト後でも時計は動かす
+    addLog('全サンプル失敗。オフセット補正なし。');
+    synced = true;
   } else {
     results.sort((a, b) => a.rtt - b.rtt);
     const best = results[0];
@@ -230,37 +198,27 @@ async function doSync() {
     offset = Math.round(best.offset);
     synced = true;
     syncCount++;
-
-    const sign   = offset >= 0 ? '+' : '-';
-    const absSec = (Math.abs(offset) / 1000).toFixed(2);
-    addLog(
-      `[${best.label}] 同期完了 (${results.length}サンプル) ` +
-      `最小RTT:${rtt}ms  オフセット:${sign}${absSec}s`
-    );
-    addLog(`全RTT: ${results.map(r => r.rtt + 'ms').join(' / ')}`);
+    const sign = offset >= 0 ? '+' : '-';
+    const absSec = (Math.abs(offset) / 1000).toFixed(3);
+    addLog(`✓ 完了 最小RTT:${rtt}ms  オフセット:${sign}${absSec}s (${results.length}/${SAMPLES}成功)`);
+    addLog(`  全RTT: ${results.map(r => r.rtt).join('/')}ms`);
   }
 
   updateStatusUI();
   btn.disabled = false;
 }
 
-// ── ステータスUI ───────────────────────────────────
 function updateStatusUI() {
   document.getElementById('rtt-val').textContent = synced ? rtt + 'ms' : '--';
   document.getElementById('sync-status').textContent = synced ? syncCount + '回' : '--';
-
   const el = document.getElementById('offset-val');
   if (!synced) { el.textContent = '--'; el.className = 'stat-value'; return; }
-
   const absMs = Math.abs(offset);
   const sign  = offset >= 0 ? '+' : '-';
   el.textContent = `${sign}${(absMs / 1000).toFixed(2)}s`;
-  el.className = absMs < 200 ? 'stat-value good'
-               : absMs < 1000 ? 'stat-value warn'
-               : 'stat-value bad';
+  el.className = absMs < 200 ? 'stat-value good' : absMs < 1000 ? 'stat-value warn' : 'stat-value bad';
 }
 
-// ── チャイム ON/OFF ─────────────────────────────────
 function toggleChime() {
   chimeEnabled = !chimeEnabled;
   const btn = document.getElementById('toggle-btn');
@@ -280,55 +238,35 @@ function toggleChime() {
   }
 }
 
-// ── メインループ ───────────────────────────────────
 function tick() {
   const now = correctedNow();
-  const s   = now.getSeconds();
-  const ms  = now.getMilliseconds();
-  const min = now.getMinutes();
-
+  const s = now.getSeconds(), ms = now.getMilliseconds(), min = now.getMinutes();
   document.getElementById('clock-main').textContent =
-    now.getHours().toString().padStart(2, '0') + ':' +
-    min.toString().padStart(2, '0') + ':' +
-    s.toString().padStart(2, '0');
+    now.getHours().toString().padStart(2,'0') + ':' +
+    min.toString().padStart(2,'0') + ':' +
+    s.toString().padStart(2,'0');
   document.getElementById('clock-sub').textContent = '.' + Math.floor(ms / 100);
-
   cleanBeeped(min);
-
   if (chimeEnabled) {
     const target = parseInt(document.getElementById('chime-sec').value) || 0;
     const before = parseInt(document.getElementById('before-sec').value) || 0;
-    const diff   = (target - s + 60) % 60;
-    const key    = `${min}-${s}`;
-
+    const diff = (target - s + 60) % 60;
+    const key = `${min}-${s}`;
     if (diff === 0 && !beeped[key] && ms < 300) {
-      beeped[key] = true;
-      bong(volume);
+      beeped[key] = true; bong(volume);
       document.getElementById('chime-ind').textContent = 'ポーン！';
       document.getElementById('chime-ind').className = 'chime-ind active';
-      setTimeout(() => {
-        if (chimeEnabled) {
-          document.getElementById('chime-ind').textContent = '待機中...';
-          document.getElementById('chime-ind').className = 'chime-ind';
-        }
-      }, 2000);
+      setTimeout(() => { if (chimeEnabled) { document.getElementById('chime-ind').textContent = '待機中...'; document.getElementById('chime-ind').className = 'chime-ind'; } }, 2000);
     } else if (before > 0 && diff <= before && diff > 0 && !beeped[key] && ms < 300) {
-      beeped[key] = true;
-      beep(880, 0.1, volume * 0.5);
+      beeped[key] = true; beep(880, 0.1, volume * 0.5);
       document.getElementById('chime-ind').textContent = `あと ${diff} 秒...`;
       document.getElementById('chime-ind').className = 'chime-ind';
     }
   }
-
-  if (synced && min % 5 === 0 && min !== lastAutoSyncMin) {
-    lastAutoSyncMin = min;
-    doSync();
-  }
-
+  if (synced && min % 5 === 0 && min !== lastAutoSyncMin) { lastAutoSyncMin = min; doSync(); }
   requestAnimationFrame(tick);
 }
 
-// ── イベント / 起動 ────────────────────────────────
 document.getElementById('vol').addEventListener('input', (e) => {
   volume = e.target.value / 100;
   document.getElementById('vol-val').textContent = e.target.value + '%';
