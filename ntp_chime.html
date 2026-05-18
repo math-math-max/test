@@ -90,16 +90,19 @@ function beep(freq, dur, vol) {
   const ctx = getAudio(), osc = ctx.createOscillator(), g = ctx.createGain();
   osc.connect(g); g.connect(ctx.destination);
   osc.frequency.value = freq;
+  // dur - 0.05 がマイナスにならないよう保護
+  const fadeStart = Math.max(ctx.currentTime + 0.01, ctx.currentTime + dur - 0.05);
   g.gain.setValueAtTime(0, ctx.currentTime);
   g.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.01);
-  g.gain.setValueAtTime(vol, ctx.currentTime + dur - 0.05);
+  g.gain.setValueAtTime(vol, fadeStart);
   g.gain.linearRampToValueAtTime(0, ctx.currentTime + dur);
   osc.start(); osc.stop(ctx.currentTime + dur);
 }
 
 function bong(vol) {
   const ctx = getAudio();
-  [880, 1108, 1320].forEach((f, i) => {
+  // 880=A5, 1109=C#6, 1319=E6 (正確な長三和音)
+  [880, 1109, 1319].forEach((f, i) => {
     const osc = ctx.createOscillator(), g = ctx.createGain();
     osc.connect(g); g.connect(ctx.destination);
     osc.frequency.value = f;
@@ -192,9 +195,11 @@ function toggleChime() {
 function tick() {
   const now = correctedNow();
   const s = now.getSeconds(), ms = now.getMilliseconds();
+  const min = now.getMinutes();
+
   document.getElementById('clock-main').textContent =
     now.getHours().toString().padStart(2, '0') + ':' +
-    now.getMinutes().toString().padStart(2, '0') + ':' +
+    min.toString().padStart(2, '0') + ':' +
     s.toString().padStart(2, '0');
   document.getElementById('clock-sub').textContent = '.' + Math.floor(ms / 100);
 
@@ -202,18 +207,29 @@ function tick() {
     const target = parseInt(document.getElementById('chime-sec').value) || 0;
     const before = parseInt(document.getElementById('before-sec').value) || 0;
     const diff = (target - s + 60) % 60;
-    const key = `${now.getMinutes()}-${s}`;
 
-    if (diff === 0 && !beeped[key] && ms < 200) {
-      beeped[key] = true; bong(volume);
+    // 秒が変わるたびに beeped をリセット
+    const key = `${min}-${s}`;
+    if (!beeped._lastKey || beeped._lastKey !== key) {
+      beeped = { _lastKey: key };
+    }
+
+    // 本鳴り：その秒の中で1回だけ
+    if (diff === 0 && !beeped.main && ms < 200) {
+      beeped.main = true;
+      bong(volume);
       document.getElementById('chime-ind').textContent = 'ポーン！';
       document.getElementById('chime-ind').className = 'chime-ind active';
-      setTimeout(() => { document.getElementById('chime-ind').className = 'chime-ind'; }, 2000);
-    } else if (before > 0 && diff <= before && diff > 0 && !beeped[key] && ms < 200) {
-      beeped[key] = true; beep(880, 0.1, volume * 0.5);
+      setTimeout(() => {
+        document.getElementById('chime-ind').className = 'chime-ind';
+      }, 2000);
+    }
+    // 予告音：その秒の中で1回だけ
+    else if (before > 0 && diff <= before && diff > 0 && !beeped.warn && ms < 200) {
+      beeped.warn = true;
+      beep(880, 0.1, volume * 0.5);
       document.getElementById('chime-ind').textContent = `あと ${diff} 秒...`;
     }
-    if (ms > 500) beeped = {};
   }
   requestAnimationFrame(tick);
 }
