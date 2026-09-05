@@ -6,6 +6,7 @@
   <title>NTP Chime (getjst.php同期版)</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f7f7fb; }
     #app { padding: 1.5rem 1rem; max-width: 480px; margin: 0 auto; font-family: sans-serif; }
     .clock-display { text-align: center; margin-bottom: 1.5rem; }
     .clock-main { font-size: 56px; font-weight: 500; color: #1a237e; letter-spacing: 2px; font-variant-numeric: tabular-nums; line-height: 1.1; }
@@ -29,6 +30,60 @@
     .chime-ind { text-align: center; font-size: 13px; color: #666; margin-top: 0.75rem; min-height: 20px; }
     .chime-ind.active { color: #1D9E75; font-weight: 700; }
     .log-area { background: #f5f5f5; border-radius: 6px; padding: 10px; font-size: 11px; color: #555; font-family: monospace; height: 120px; overflow-y: auto; white-space: pre-wrap; margin-top: 10px; border: 1px solid #ddd; }
+
+    .warn-note {
+      display: flex; gap: 8px; align-items: flex-start;
+      background: #fff8e1; border: 1px solid #ffe082; color: #7a5c00;
+      border-radius: 10px; padding: 10px 12px; font-size: 12.5px; line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+    .warn-note .ico { font-size: 15px; line-height: 1.6; }
+
+    section.guide { margin-top: 2rem; }
+    section.guide h2 {
+      font-size: 15px; color: #1a237e; margin-bottom: 0.6rem;
+      padding-bottom: 6px; border-bottom: 1px solid #e0e0e6;
+    }
+    section.guide p, section.guide li { font-size: 13.5px; color: #444; line-height: 1.7; }
+    section.guide ol { padding-left: 1.15rem; margin: 0.4rem 0; }
+    section.guide ol li { margin-bottom: 6px; }
+    section.guide + section.guide { margin-top: 1.5rem; }
+
+    .app-card {
+      display: flex; align-items: center; gap: 12px;
+      background: #fff; border: 1px solid #ddd; border-radius: 12px;
+      padding: 12px 14px; margin-top: 0.6rem;
+    }
+    .app-card .txt { flex: 1; }
+    .app-card .txt strong { display: block; font-size: 14px; color: #1a237e; margin-bottom: 2px; }
+    .app-card .txt span { font-size: 12px; color: #777; }
+    .dl-btn {
+      flex-shrink: 0; text-decoration: none; text-align: center;
+      background: #3f51b5; color: #fff; font-size: 13px; font-weight: 500;
+      padding: 9px 16px; border-radius: 8px; white-space: nowrap;
+    }
+    .dl-btn:active { background: #303f9f; }
+
+    details.steps {
+      background: #fff; border: 1px solid #ddd; border-radius: 12px;
+      padding: 0; margin-top: 0.6rem; overflow: hidden;
+    }
+    details.steps summary {
+      list-style: none; cursor: pointer; padding: 12px 14px;
+      font-size: 13.5px; font-weight: 500; color: #1a237e;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    details.steps summary::-webkit-details-marker { display: none; }
+    details.steps summary::after { content: '▼'; font-size: 10px; color: #999; transition: transform .15s; }
+    details.steps[open] summary::after { transform: rotate(180deg); }
+    details.steps .steps-body { padding: 0 14px 14px; border-top: 1px solid #eee; }
+    details.steps ol { padding-left: 1.2rem; margin-top: 10px; }
+    details.steps li { font-size: 13px; color: #444; line-height: 1.7; margin-bottom: 8px; }
+    details.steps li b { color: #1a237e; }
+    details.steps .tip {
+      font-size: 12px; color: #7a5c00; background: #fff8e1;
+      border-radius: 8px; padding: 8px 10px; margin-top: 8px;
+    }
   </style>
 </head>
 <body>
@@ -51,6 +106,12 @@
       <div class="stat-value" id="accuracy-val">--</div>
     </div>
   </div>
+
+  <div class="warn-note">
+    <span class="ico">⚠️</span>
+    <span>Web版はこの画面を開いたまま・画面ロックしない状態でのみ時報が鳴ります。バックグラウンドや画面ロック中も正確に鳴らしたい場合は、下の「使い方」にあるアプリ版(APK)をご利用ください。</span>
+  </div>
+
   <div class="controls">
     <div class="ctrl-row">
       <span class="ctrl-label">鳴らす秒</span>
@@ -70,12 +131,62 @@
   </div>
   <div class="chime-ind" id="chime-ind">時報を有効にしてください</div>
   <div class="log-area" id="log"></div>
+
+  <!-- ===================== 使い方 ===================== -->
+  <section class="guide">
+    <h2>使い方</h2>
+    <ol>
+      <li>ページを開くと自動でNTPサーバーと同期します(手動でやり直す場合は「getjst同期実行」)</li>
+      <li>「鳴らす秒」に時報を鳴らしたい秒(0〜59)、「予告秒数」に何秒前から予告音を鳴らすかを入力</li>
+      <li>「時報 OFF」ボタンをタップしてONにする</li>
+      <li>この画面を開いたまま、画面をロックしない状態で待つ</li>
+    </ol>
+  </section>
+
+  <section class="guide">
+    <h2>もっと正確に・バックグラウンドでも鳴らしたい場合</h2>
+    <p>Web版はブラウザの仕様上、画面がロックされたりタブが裏に回ると音が鳴りません。画面を消していても正確に時報を鳴らしたい場合は、Android版アプリをご利用ください。</p>
+    <div class="app-card">
+      <div class="txt">
+        <strong>秒時計(SeClock)</strong>
+        <span>Android版・APK直接インストール</span>
+      </div>
+      <a class="dl-btn" href="./SeClock.apk" download>ダウンロード</a>
+    </div>
+  </section>
+
+  <section class="guide">
+    <h2>アプリ版で「重ねて表示」が有効にできないとき</h2>
+    <p>Google Play以外からインストールしたアプリは、Androidのセキュリティ機能により「他のアプリの上に重ねて表示」が初期状態でONにできません。以下の手順で解除できます。</p>
+
+    <details class="steps">
+      <summary>
+        解除手順を見る
+      </summary>
+      <div class="steps-body">
+        <ol>
+          <li><b>設定 → アプリ → 秒時計</b>を開く<br>(ホーム画面でアイコン長押し →「アプリ情報」でも同じ)</li>
+          <li>右上に<b>「⋮」</b>がないか確認する</li>
+          <li>
+            なければ先に<b>「他のアプリの上に重ねて表示」</b>を開く → 一度ONにしようとして拒否される<br>
+            → 戻ると「⋮」が出現する
+          </li>
+          <li>「⋮」→ <b>「制限付きの設定を許可」</b>→ 確認してOK</li>
+          <li>もう一度「他のアプリの上に重ねて表示」を開き、ONにする</li>
+        </ol>
+        <div class="tip">これはAndroidの標準機能で、アプリの不具合ではありません。再インストールするたびに毎回この操作が必要です。</div>
+      </div>
+    </details>
+  </section>
 </div>
 
 <script>
 let rtt = 0, offset = 0, accuracy = 0, synced = false, syncCount = 0;
 let chimeEnabled = false, volume = 0.7, audioCtx = null;
-let beeped = {};
+
+// バグ修正1: 固定のms窓ではなく「秒が切り替わった最初のフレーム」で判定する。
+// requestAnimationFrame の間隔がブラウザの都合で開いても、その秒の時報を取りこぼさない。
+let lastFiredSec = -1;
 
 function correctedNow() { return new Date(Date.now() + offset); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -90,7 +201,6 @@ function beep(freq, dur, vol) {
   const ctx = getAudio(), osc = ctx.createOscillator(), g = ctx.createGain();
   osc.connect(g); g.connect(ctx.destination);
   osc.frequency.value = freq;
-  // dur - 0.05 がマイナスにならないよう保護
   const fadeStart = Math.max(ctx.currentTime + 0.01, ctx.currentTime + dur - 0.05);
   g.gain.setValueAtTime(0, ctx.currentTime);
   g.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.01);
@@ -101,7 +211,6 @@ function beep(freq, dur, vol) {
 
 function bong(vol) {
   const ctx = getAudio();
-  // 880=A5, 1109=C#6, 1319=E6 (正確な長三和音)
   [880, 1109, 1319].forEach((f, i) => {
     const osc = ctx.createOscillator(), g = ctx.createGain();
     osc.connect(g); g.connect(ctx.destination);
@@ -119,21 +228,17 @@ function addLog(msg) {
   el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + el.textContent;
 }
 
-// getjst.php を使った1回分の計測
-// NTPの4タイムスタンプ方式：δ = (t2 + t3 - t1 - t4) / 2
 async function measureGetjst() {
   const url = `https://popopo.shop/getjst.php?${Date.now()}`;
-  const t1 = Date.now();                          // クライアント送信直前
+  const t1 = Date.now();
   const res = await fetch(url, { cache: 'no-store' });
-  const t4 = Date.now();                          // クライアント受信直後
+  const t4 = Date.now();
   const data = await res.json();
 
-  // サーバー側の固定小数点タイムスタンプを ms に変換
-  // 小数部は32ビット右シフト相当（÷2^32）で秒に変換
   let t2l = data.t2l, t3l = data.t3l;
   for (let i = 0; i < 32; i++) { t2l /= 2; t3l /= 2; }
-  const t2 = (data.t2h + t2l) * 1000;            // サーバー受信時刻 (ms)
-  const t3 = (data.t3h + t3l) * 1000;            // サーバー送信時刻 (ms)
+  const t2 = (data.t2h + t2l) * 1000;
+  const t3 = (data.t3h + t3l) * 1000;
 
   const measuredRtt    = t4 - t1;
   const measuredOffset = (t2 + t3 - t1 - t4) / 2;
@@ -160,7 +265,6 @@ async function doSync() {
   }
 
   if (samples.length > 0) {
-    // RTT最小サンプルを採用（ネットワーク遅延が最も小さい＝最も精度が高い）
     samples.sort((a, b) => a.rtt - b.rtt);
     const best = samples[0];
     rtt    = best.rtt;
@@ -177,6 +281,25 @@ async function doSync() {
   btn.disabled = false;
 }
 
+// バグ修正3: 時報が発生しうる区間の前後は自動再同期を避ける(ネイティブアプリ版と同じ考え方)
+function isNearChimeWindow(marginSec = 20) {
+  if (!chimeEnabled) return false;
+  const target = parseInt(document.getElementById('chime-sec').value) || 0;
+  const before = parseInt(document.getElementById('before-sec').value) || 0;
+  const s = correctedNow().getSeconds();
+  const start = (target - before - marginSec + 60) % 60;
+  const end = (target + marginSec) % 60;
+  return start <= end ? (s >= start && s <= end) : (s >= start || s <= end);
+}
+
+const AUTO_SYNC_MS = 10 * 60 * 1000;
+function scheduleAutoSync() {
+  setTimeout(function run() {
+    if (isNearChimeWindow()) { setTimeout(run, 1000); return; }
+    doSync().finally(() => setTimeout(run, AUTO_SYNC_MS));
+  }, AUTO_SYNC_MS);
+}
+
 function updateStatusUI() {
   document.getElementById('rtt-val').textContent = synced ? Math.round(rtt) + 'ms' : '--';
   document.getElementById('sync-status').textContent = synced ? `${syncCount}回` : '未同期';
@@ -190,7 +313,25 @@ function toggleChime() {
   const btn = document.getElementById('toggle-btn');
   btn.textContent = chimeEnabled ? '時報 ON (停止はここ)' : '時報 OFF';
   btn.className = chimeEnabled ? 'toggle-btn active' : 'toggle-btn';
+
+  // バグ修正2: AudioContextはユーザー操作(このクリック)の中で作成/再開しないと
+  // モバイルブラウザ(特にiOS)では後から鳴らそうとしても無音になる。
+  if (chimeEnabled) {
+    getAudio();
+    lastFiredSec = -1; // ONにした瞬間の秒でも即座に判定できるようにリセット
+  }
 }
+
+function clampInput(el, min, max) {
+  el.addEventListener('change', () => {
+    let v = parseInt(el.value);
+    if (isNaN(v)) v = min;
+    v = Math.min(max, Math.max(min, v));
+    el.value = v;
+  });
+}
+clampInput(document.getElementById('chime-sec'), 0, 59);
+clampInput(document.getElementById('before-sec'), 0, 30);
 
 function tick() {
   const now = correctedNow();
@@ -203,30 +344,20 @@ function tick() {
     s.toString().padStart(2, '0');
   document.getElementById('clock-sub').textContent = '.' + Math.floor(ms / 100);
 
-  if (chimeEnabled) {
+  if (chimeEnabled && s !== lastFiredSec) {
+    lastFiredSec = s;
     const target = parseInt(document.getElementById('chime-sec').value) || 0;
     const before = parseInt(document.getElementById('before-sec').value) || 0;
     const diff = (target - s + 60) % 60;
 
-    // 秒が変わるたびに beeped をリセット
-    const key = `${min}-${s}`;
-    if (!beeped._lastKey || beeped._lastKey !== key) {
-      beeped = { _lastKey: key };
-    }
-
-    // 本鳴り：その秒の中で1回だけ
-    if (diff === 0 && !beeped.main && ms < 200) {
-      beeped.main = true;
+    if (diff === 0) {
       bong(volume);
       document.getElementById('chime-ind').textContent = 'ポーン！';
       document.getElementById('chime-ind').className = 'chime-ind active';
       setTimeout(() => {
         document.getElementById('chime-ind').className = 'chime-ind';
       }, 2000);
-    }
-    // 予告音：その秒の中で1回だけ
-    else if (before > 0 && diff <= before && diff > 0 && !beeped.warn && ms < 200) {
-      beeped.warn = true;
+    } else if (before > 0 && diff <= before) {
       beep(880, 0.1, volume * 0.5);
       document.getElementById('chime-ind').textContent = `あと ${diff} 秒...`;
     }
@@ -240,6 +371,7 @@ document.getElementById('vol').addEventListener('input', (e) => {
 });
 
 doSync();
+scheduleAutoSync();
 requestAnimationFrame(tick);
 </script>
 </body>
